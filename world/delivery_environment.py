@@ -3,6 +3,8 @@ Environment.
 """
 import random
 import datetime
+from typing import Any
+
 import numpy as np
 from tqdm import trange
 from pathlib import Path
@@ -201,7 +203,7 @@ class Environment:
             if self.gui is not None:
                 self.gui.close()
 
-        return self.agent_pos
+        return (self.agent_pos[0], self.agent_pos[1], self.initial_target_count)
 
     def _move_agent(self, new_pos: tuple[int, int]):
         """Moves the agent, if possible and updates the
@@ -234,15 +236,15 @@ class Environment:
                 self.agent_pos = new_pos
                 self.grid[new_pos] = 0
                 self.info["target_reached"] = True
-                self.world_stats["total_targets_reached"] += 1
                 self.info["agent_moved"] = True
                 self.world_stats["total_agent_moves"] += 1
+                self.world_stats["total_targets_reached"] += 1
             case _:
                 raise ValueError(f"Grid is badly formed. It has a value of "
                                  f"{self.grid[new_pos]} at position "
                                  f"{new_pos}.")
 
-    def step(self, action: int) -> tuple[np.ndarray, float, bool]:
+    def step(self, action: int) -> tuple[tuple[Any, Any, int | Any], Any, bool, dict]:
         """This function makes the agent take a step on the grid.
 
         Action is provided as integer and values are:
@@ -315,7 +317,8 @@ class Environment:
             self.gui.render(self.grid, self.agent_pos, self.info,
                             reward, is_single_step)
 
-        return self.agent_pos, reward, self.terminal_state, self.info
+        remaining = self.initial_target_count - self.world_stats["total_targets_reached"]
+        return (self.agent_pos[0], self.agent_pos[1], remaining), reward, self.terminal_state, self.info
 
     @staticmethod
     def _default_reward_function(grid, agent_pos) -> float:
