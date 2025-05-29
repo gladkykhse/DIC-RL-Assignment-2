@@ -80,6 +80,10 @@ class Environment:
         self.terminal_state = False
         self.sigma = sigma
 
+        # delivery task bookkeeping
+        self.start_pos: tuple[int, int] | None = None
+        self.initial_target_count: int = 0
+
         # Set up reward function
         if reward_fn is None:
             warn("No reward function provided. Using default reward.")
@@ -114,12 +118,15 @@ class Environment:
         environment since last env.reset(). Basically, it
         accumulates information.
         """
-        return {"cumulative_reward": 0,
-                "total_steps": 0,
-                "total_agent_moves": 0,
-                "total_failed_moves": 0,
-                "total_targets_reached": 0,
-                }
+        return {
+            "cumulative_reward": 0,
+            "total_steps": 0,
+            "total_agent_moves": 0,
+            "total_failed_moves": 0,
+            "total_targets_reached": 0,
+            "initial_target_count": 0,
+            "final_bonus_given": 0,
+        }
 
     def _initialize_agent_pos(self):
         """Initializes agent position from the given location or
@@ -143,6 +150,7 @@ class Environment:
             zeros = np.where(self.grid == 0)
             idx = random.randint(0, len(zeros[0]) - 1)
             self.agent_pos = (zeros[0][idx], zeros[1][idx])
+            self.agent_start_pos = self.agent_pos
 
     def reset(self, **kwargs) -> tuple[int, int]:
         """Reset the environment to an initial state.
@@ -174,9 +182,16 @@ class Environment:
         # Reset variables
         self.grid = Grid.load_grid(self.grid_fp).cells
         self._initialize_agent_pos()
+        # record where we started
+        self.start_pos = self.agent_pos
+        # count how many deliveries we need to make
+        self.initial_target_count = int(np.sum(self.grid == 3))
+
+        # reset stats and record initial_target_count
         self.terminal_state = False
         self.info = self._reset_info()
         self.world_stats = self._reset_world_stats()
+        self.world_stats["initial_target_count"] = self.initial_target_count
 
         # GUI specific code
         if not self.no_gui:
@@ -206,15 +221,22 @@ class Environment:
                 self.info["agent_moved"] = False
                 pass
             case 3:  # Moved to a target tile
+                # self.agent_pos = new_pos
+                # self.grid[new_pos] = 0
+                # if np.sum(self.grid == 3) == 0:
+                #     self.terminal_state = True
+                # self.info["target_reached"] = True
+                # self.world_stats["total_targets_reached"] += 1
+                # self.info["agent_moved"] = True
+                # self.world_stats["total_agent_moves"] += 1
+
+                # collect the delivery
                 self.agent_pos = new_pos
                 self.grid[new_pos] = 0
-                if np.sum(self.grid == 3) == 0:
-                    self.terminal_state = True
                 self.info["target_reached"] = True
                 self.world_stats["total_targets_reached"] += 1
                 self.info["agent_moved"] = True
                 self.world_stats["total_agent_moves"] += 1
-                # Otherwise, the agent can't move and nothing happens
             case _:
                 raise ValueError(f"Grid is badly formed. It has a value of "
                                  f"{self.grid[new_pos]} at position "
@@ -273,7 +295,17 @@ class Environment:
 
         self._move_agent(new_pos)
 
+        # add base reward
         self.world_stats["cumulative_reward"] += reward
+
+        # if we've made all deliveries AND returned home, give the big bonus
+        if (self.world_stats["total_targets_reached"] == self.initial_target_count
+            and self.agent_pos == self.start_pos
+                and not self.terminal_state):
+            reward += 100
+            self.world_stats["cumulative_reward"] += 100
+            self.world_stats["final_bonus_given"] = 1
+            self.terminal_state = True
 
         # GUI specific code
         if not self.no_gui:
