@@ -2,7 +2,7 @@ from pathlib import Path
 
 from world.grid import Grid
 from world.gui import GUI
-from world.environment import Environment
+from world.delivery_environment import Environment
 
 
 GRID_CONFIGS_FP = Path(__file__).parents[1].resolve() / Path("grid_configs")
