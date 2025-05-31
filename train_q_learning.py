@@ -3,7 +3,7 @@ from pathlib import Path
 from tqdm import trange
 
 try:
-    from world import Environment
+    from world.delivery_environment import Environment
     from agents.q_learning import QLearningAgent
 except ModuleNotFoundError:
     from os import path, pardir
