@@ -4,7 +4,7 @@ from tqdm import trange
 import numpy as np
 
 try:
-    from world import Environment
+    from world.delivery_environment import Environment
     from agents.ppo import PPOAgent
 except ModuleNotFoundError:
     from os import path, pardir
@@ -15,7 +15,7 @@ except ModuleNotFoundError:
     ))
     if root_path not in sys.path:
         sys.path.append(root_path)
-    from world import Environment
+    from world.delivery_environment import Environment
     from agents.ppo import PPOAgent
 
 
