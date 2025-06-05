@@ -36,9 +36,9 @@ MAPPING = {
         "max_deliveries": 1,
     },
     "grid_configs/small_grid_2.npy": {
-        "model": "models/small_grid_2_policy.pt",
+        "model_file": "models/small_grid_2_policy.pt",
         "hidden_size": 64,
-        "model_file": 8,
+        "n_rows": 8,
         "n_cols": 8,
         "max_deliveries": 2,
     },
@@ -50,13 +50,15 @@ def main(grid_paths, no_gui, max_steps, fps, sigma, random_seed):
         env = Environment(grid, no_gui, sigma=sigma, target_fps=fps, random_seed=random_seed)
         env.reset()
 
+        str_path = str(grid)
+
         agent = DQNAgent(
-            model_file=MAPPING[grid]["model_file"],
-            hidden_size=MAPPING[grid]["hidden_size"],
+            model_file=MAPPING[str_path]["model_file"],
+            hidden_size=MAPPING[str_path]["hidden_size"],
             device="cpu",
-            n_rows=MAPPING[grid]["n_rows"],
-            n_cols=MAPPING[grid]["n_cols"],
-            max_deliveries=MAPPING[grid]["max_deliveries"],
+            n_rows=MAPPING[str_path]["n_rows"],
+            n_cols=MAPPING[str_path]["n_cols"],
+            max_deliveries=MAPPING[str_path]["max_deliveries"],
         )
 
         Environment.evaluate_agent(grid, agent, max_steps, sigma, random_seed=random_seed)
