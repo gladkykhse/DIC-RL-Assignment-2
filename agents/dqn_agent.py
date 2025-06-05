@@ -1,9 +1,9 @@
-from random import randint
 import numpy as np
 import torch.nn as nn
 import torch
 
 from agents import BaseAgent
+
 
 class DQN(nn.Module):
     def __init__(self, input_dim: int, n_actions: int, hidden_size: int):
@@ -13,7 +13,7 @@ class DQN(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, n_actions)
+            nn.Linear(hidden_size, n_actions),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -21,7 +21,15 @@ class DQN(nn.Module):
 
 
 class DQNAgent(BaseAgent):
-    def __init__(self, model_file: str, hidden_size: int, device: torch.device, n_rows: int, n_cols: int, max_deliveries: int):
+    def __init__(
+        self,
+        model_file: str,
+        hidden_size: int,
+        device: torch.device,
+        n_rows: int,
+        n_cols: int,
+        max_deliveries: int,
+    ):
         super().__init__()
         self.device = device
         self.n_rows = n_rows
@@ -34,11 +42,11 @@ class DQNAgent(BaseAgent):
 
     def encode_state_norm(self, raw: tuple[int, int, int]) -> torch.Tensor:
         i, j, rem = raw
-        return torch.tensor([
-            i / (self.n_rows - 1),
-            j / (self.n_cols - 1),
-            rem / self.max_deliveries
-        ], device=self.device, dtype=torch.float32)
+        return torch.tensor(
+            [i / (self.n_rows - 1), j / (self.n_cols - 1), rem / self.max_deliveries],
+            device=self.device,
+            dtype=torch.float32,
+        )
 
     def update(self, state: tuple[int, int], reward: float, action):
         pass
