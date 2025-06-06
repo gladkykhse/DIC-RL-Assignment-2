@@ -42,6 +42,13 @@ MAPPING = {
         "n_cols": 8,
         "max_deliveries": 2,
     },
+    "grid_configs/A1_grid.npy": {
+        "model_file": "models/A1_grid_policy.pt",
+        "hidden_size": 64,
+        "n_rows": 15,
+        "n_cols": 15,
+        "max_deliveries": 1,
+    },
 }
 
 
