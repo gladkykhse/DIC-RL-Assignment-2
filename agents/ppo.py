@@ -38,7 +38,7 @@ class ValueNetwork(nn.Module):
 
 class PPOAgent(BaseAgent):
     def __init__(self,
-                 state_dim=3,
+                 state_dim=5,
                  action_dim=4,
                  hidden_dim=128,
                  gamma=0.99,
