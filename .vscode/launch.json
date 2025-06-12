@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Train DQN",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/train_dqn.py",
+      "args": [
+        "grid_configs/large_grid.npy",
+        //"--no_gui",
+        "--sigma",
+        "0.0",
+        "--fps",
+        "30",
+        "--episodes",
+        "200",
+        "--iter",
+        "2000",
+        "--random_seed",
+        "0"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}
