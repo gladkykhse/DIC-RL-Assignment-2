@@ -2,14 +2,17 @@ import numpy as np
 import random
 from agents import BaseAgent
 
+
 class QLearningAgent(BaseAgent):
-    def __init__(self,
-                 grid_fp,
-                 gamma=0.9,
-                 epsilon=0.1,
-                 alpha=0.1,
-                 convergence_tol=1e-3,
-                 patience=5):
+    def __init__(
+        self,
+        grid_fp,
+        gamma=0.9,
+        epsilon=0.1,
+        alpha=0.1,
+        convergence_tol=1e-3,
+        patience=5,
+    ):
         """
         Initializes the QLearningAgent with the given parameters.
 
@@ -23,8 +26,8 @@ class QLearningAgent(BaseAgent):
         """
         super().__init__()
         self.gamma = gamma
-        #self.epsilon = epsilon
-        #decaying epsilon
+        # self.epsilon = epsilon
+        # decaying epsilon
         self.epsilon = epsilon
         self.min_epsilon = 0.01
         self.epsilon_decay = 0.995
@@ -66,11 +69,14 @@ class QLearningAgent(BaseAgent):
         best_actions = [a for a, q in enumerate(q_values) if q == max_q]
         return random.choice(best_actions)
 
-    def update(self, prev_state: tuple[int, int],
-                     action: int,
-                     reward: float,
-                     done: bool = False,
-                     next_state: tuple[int, int] = (0, 0)):
+    def update(
+        self,
+        prev_state: tuple[int, int],
+        action: int,
+        reward: float,
+        done: bool = False,
+        next_state: tuple[int, int] = (0, 0),
+    ):
         """
         Performs the Q-learning update for the current step based on the transition.
 
@@ -91,7 +97,6 @@ class QLearningAgent(BaseAgent):
         self._check_convergence()
         # Decay epsilon
         self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
-
 
     def _check_convergence(self):
         """
@@ -119,7 +124,11 @@ class QLearningAgent(BaseAgent):
         self._prev_policy[:] = current_policy
 
         # Converged if both have been stable
-        if (self._unchanged_q_count >= self.patience and
-                self._unchanged_policy_count >= self.patience):
+        if (
+            self._unchanged_q_count >= self.patience
+            and self._unchanged_policy_count >= self.patience
+        ):
             self.has_converged = True
-            print(f"Q-Learning Agent converged (tol={self.convergence_tol}, patience={self.patience})")
+            print(
+                f"Q-Learning Agent converged (tol={self.convergence_tol}, patience={self.patience})"
+            )

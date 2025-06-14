@@ -9,9 +9,7 @@ except ModuleNotFoundError:
     from os import path, pardir
     import sys
 
-    root_path = path.abspath(path.join(
-        path.abspath(__file__), pardir, pardir
-    ))
+    root_path = path.abspath(path.join(path.abspath(__file__), pardir, pardir))
     if root_path not in sys.path:
         sys.path.append(root_path)
     from world import Environment
@@ -20,8 +18,7 @@ except ModuleNotFoundError:
 
 def parse_args():
     p = ArgumentParser(description="DIC Q-Learning Trainer.")
-    p.add_argument("GRID", type=Path, nargs="+",
-                   help="Paths to the grid file to use.")
+    p.add_argument("GRID", type=Path, nargs="+", help="Paths to the grid file to use.")
     p.add_argument("--no_gui", action="store_true")
     p.add_argument("--sigma", type=float, default=0.1)
     p.add_argument("--fps", type=int, default=30)
@@ -33,17 +30,9 @@ def parse_args():
 
 def main(grid_paths, no_gui, episodes, max_steps, fps, sigma, random_seed):
     for grid in grid_paths:
-        env = Environment(grid, no_gui, sigma=sigma,
-                          target_fps=fps, random_seed=random_seed)
+        env = Environment(grid, no_gui, sigma=sigma, target_fps=fps, random_seed=random_seed)
 
-        agent = QLearningAgent(
-            grid_fp=grid,
-            gamma=0.9,
-            epsilon=0.1,
-            alpha=0.05,
-            convergence_tol=1e-6,
-            patience=50
-        )
+        agent = QLearningAgent(grid_fp=grid, gamma=0.9, epsilon=0.1, alpha=0.05, convergence_tol=1e-6, patience=50)
 
         for _ in trange(episodes, desc="Training episodes"):
             if agent.has_converged:
@@ -56,31 +45,16 @@ def main(grid_paths, no_gui, episodes, max_steps, fps, sigma, random_seed):
 
                 actual_action = info.get("actual_action", action)
                 agent.update(
-                    prev_state=state,
-                    action=actual_action,
-                    reward=reward,
-                    done=terminated,
-                    next_state=next_state
+                    prev_state=state, action=actual_action, reward=reward, done=terminated, next_state=next_state
                 )
 
                 state = next_state
                 if terminated or agent.has_converged:
                     break
 
-        Environment.evaluate_agent(
-            grid, agent, max_steps, sigma,
-            random_seed=random_seed
-        )
+        Environment.evaluate_agent(grid, agent, max_steps, sigma, random_seed=random_seed)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
-    main(
-        args.GRID,
-        args.no_gui,
-        args.episodes,
-        args.iter,
-        args.fps,
-        args.sigma,
-        args.random_seed
-    )
+    main(args.GRID, args.no_gui, args.episodes, args.iter, args.fps, args.sigma, args.random_seed)
