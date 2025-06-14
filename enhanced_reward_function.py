@@ -68,8 +68,8 @@ def enhanced_reward_function(grid: np.ndarray,
             guidance_reward -= 0.2
             
         # Extra bonus for being very close to a target
-        if new_min_dist <= 2:
-            guidance_reward += 1.0
+        # if new_min_dist <= 2:
+        #     guidance_reward += 1.0
             
     else:
         # Phase 2: All targets collected, returning home
@@ -84,8 +84,8 @@ def enhanced_reward_function(grid: np.ndarray,
             guidance_reward -= 0.5
             
         # Extra bonus for being very close to home
-        if new_home_dist <= 2:
-            guidance_reward += 2.0
+        # if new_home_dist <= 2:
+        #     guidance_reward += 2.0
     
     # Efficiency bonus: reward for making progress overall
     total_progress_bonus = _calculate_progress_bonus(grid, new_pos, targets_remaining, 
