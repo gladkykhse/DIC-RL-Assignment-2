@@ -92,8 +92,6 @@ class Environment:
             self.reward_fn = self._default_reward_function
         else:
             self.reward_fn = reward_fn
-        
-        self.prev_agent_pos: tuple[int,int] | None = None
 
         # GUI specific code: Set up the environment as a blank state.
         self.no_gui = no_gui
@@ -186,8 +184,6 @@ class Environment:
         # Reset variables
         self.grid = Grid.load_grid(self.grid_fp).cells
         self._initialize_agent_pos()
-        self.prev_agent_pos = None
-
         # record where we started
         self.start_pos = self.agent_pos
         # count how many deliveries we need to make
@@ -207,13 +203,7 @@ class Environment:
             if self.gui is not None:
                 self.gui.close()
 
-        row, col = self.agent_pos
-        n_rows, n_cols = self.grid.shape
-        remaining = self.initial_target_count - self.world_stats["total_targets_reached"]
-        x_norm = row / float(n_rows - 1) if n_rows > 1 else 0.0
-        y_norm = col / float(n_cols - 1) if n_cols > 1 else 0.0
-        r_norm = remaining / float(self.initial_target_count) if self.initial_target_count > 0 else 0.0
-        return np.array([x_norm, y_norm, r_norm], dtype=np.float32)
+        return (self.agent_pos[0], self.agent_pos[1], self.initial_target_count)
 
     def _move_agent(self, new_pos: tuple[int, int]):
         """Moves the agent, if possible and updates the
@@ -301,22 +291,12 @@ class Environment:
         self.info["actual_action"] = actual_action
         direction = action_to_direction(actual_action)
         new_pos = (self.agent_pos[0] + direction[0], self.agent_pos[1] + direction[1])
-        old_pos = self.agent_pos
-        
+
         # Calculate the reward for the agent
-        if self.reward_fn == self._default_reward_function:
-            reward = self.reward_fn(self.grid, new_pos)
-        else:
-            reward = self.reward_fn(
-                self.grid,
-                self.prev_agent_pos,       # old position (None on first step)
-                new_pos,                   # candidate new position
-                self.initial_target_count  # if you need it for “remaining” logic
-            )
-            
+        reward = self.reward_fn(self.grid, new_pos)
+
         self._move_agent(new_pos)
-        self.prev_agent_pos = old_pos
-        
+
         # add base reward
         self.world_stats["cumulative_reward"] += reward
 
@@ -338,14 +318,7 @@ class Environment:
                             reward, is_single_step)
 
         remaining = self.initial_target_count - self.world_stats["total_targets_reached"]
-        
-        row, col = self.agent_pos
-        n_rows, n_cols = self.grid.shape
-        x_norm = row / float(n_rows - 1) if n_rows > 1 else 0.0
-        y_norm = col / float(n_cols - 1) if n_cols > 1 else 0.0
-        r_norm = remaining / float(self.initial_target_count) if self.initial_target_count > 0 else 0.0
-        state = np.array([x_norm, y_norm, r_norm], dtype=np.float32)
-        return state, reward, self.terminal_state, self.info
+        return (self.agent_pos[0], self.agent_pos[1], remaining), reward, self.terminal_state, self.info
 
     @staticmethod
     def _default_reward_function(grid, agent_pos) -> float:
