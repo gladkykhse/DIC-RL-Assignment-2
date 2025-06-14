@@ -6,14 +6,18 @@ from agents import BaseAgent
 
 
 class DQN(nn.Module):
-    def __init__(self, input_dim: int, n_actions: int, hidden_size: int):
+    def __init__(self, input_dim: int, n_actions: int, hidden_size: int = 64):
         super().__init__()
         self.network = nn.Sequential(
             nn.Linear(input_dim, hidden_size),
             nn.ReLU(),
+            nn.Dropout(0.1),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, n_actions),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_size, hidden_size // 2),
+            nn.ReLU(),
+            nn.Linear(hidden_size // 2, n_actions)
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -37,7 +41,7 @@ class DQNAgent(BaseAgent):
         self.max_deliveries = max_deliveries
 
         self.model = DQN(input_dim=3, n_actions=4, hidden_size=hidden_size).to(device)
-        self.model.load_state_dict(torch.load(model_file))
+        self.model.load_state_dict(torch.load(model_file, map_location=device))
         self.model.eval()
 
     def encode_state_norm(self, raw: tuple[int, int, int]) -> torch.Tensor:
