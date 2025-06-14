@@ -76,7 +76,7 @@ class PPOAgent(BaseAgent):
         norm_x = x / self.grid_width
         norm_y = y / self.grid_height
         norm_targets = targets / self.max_targets if self.max_targets > 0 else 0
-        return torch.FloatTensor([x, y, targets]).to(device)
+        return torch.FloatTensor([norm_x, norm_y, norm_targets]).to(device)
 
 
     def reset_episode_memory(self):

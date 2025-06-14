@@ -409,3 +409,5 @@ class Environment:
         file_name = datetime.now().strftime("%Y-%m-%d__%H-%M-%S")
 
         save_results(file_name, env.world_stats, path_image, show_images)
+
+        return env.world_stats["cumulative_reward"]
