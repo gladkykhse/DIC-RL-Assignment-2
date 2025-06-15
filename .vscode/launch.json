@@ -2,26 +2,83 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Train DQN",
+      "name": "Q-Learning Train and Eval - Enhanced Rewards",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/train_dqn.py",
+      "program": "${workspaceFolder}/train_q_learning.py",
       "args": [
-        "grid_configs/large_grid.npy",
-        //"--no_gui",
-        "--sigma",
-        "0.0",
-        "--fps",
-        "30",
+        "grid_configs/medium_grid.npy",
+        "--enhanced_rewards",
+        "--no_gui",
         "--episodes",
-        "200",
-        "--iter",
         "2000",
-        "--random_seed",
-        "0"
+        "--sigma",
+        "0.0"
       ],
       "console": "integratedTerminal",
-      "justMyCode": true
+      "justMyCode": true,
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "DQN Training - Medium Grid",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/train_and_run_dqn.py",
+      "args": [
+        "medium_grid.npy",
+        "--mode",
+        "train",
+        "--no_gui",
+        "--episodes",
+        "500",
+        "--sigma",
+        "0.0"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "DQN Evaluation - Medium Grid",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/train_and_run_dqn.py",
+      "args": [
+        "medium_grid.npy",
+        "--mode",
+        "evaluate",
+        "--no_gui",
+        "--eval_episodes",
+        "10",
+        "--sigma",
+        "0.0"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "DQN Training & Evaluation - All Medium Grids",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/train_and_run_dqn.py",
+      "args": [
+        "medium_grid_new_1.npy",
+        "medium_grid_new_2.npy",
+        "medium_grid.npy",
+        "--mode",
+        "both",
+        "--no_gui",
+        "--episodes",
+        "300",
+        "--eval_episodes",
+        "5",
+        "--sigma",
+        "0.0"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "cwd": "${workspaceFolder}"
     }
   ]
 }
