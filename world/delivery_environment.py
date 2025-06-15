@@ -398,7 +398,7 @@ class Environment:
             action = agent.take_action(state)
             state, _, terminated, _ = env.step(action)
 
-            agent_path.append(state)
+            agent_path.append(env.agent_pos)
 
             if terminated:
                 break
