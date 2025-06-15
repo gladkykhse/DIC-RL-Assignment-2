@@ -17,7 +17,7 @@ if os.path.abspath('.') not in sys.path:
     sys.path.append(os.path.abspath('.'))
 
 from world.delivery_environment import Environment
-from enhanced_reward_function import EnhancedRewardWrapper
+from reward_functions import calculate_base_reward, calculate_enhanced_reward
 from agents.dqn_agent import DQN, DQNAgent
 
 def get_device() -> torch.device:
@@ -31,7 +31,7 @@ device = get_device()
 print(f"Using device: {device}")
 
 # ============================================================================
-# ENVIRONMENT SETUP``
+# ENVIRONMENT SETUP
 # ============================================================================
 
 def setup_environment(grid_name, no_gui, target_fps):
@@ -41,11 +41,13 @@ def setup_environment(grid_name, no_gui, target_fps):
         print(f"Grid {grid_path} not found. Please run the grid generator first.")
         return None
     
-    # Create base environment
-    base_env = Environment(grid_path, no_gui=no_gui, target_fps=target_fps)
-    
-    # Wrap with enhanced reward function
-    env = EnhancedRewardWrapper(base_env)
+    env = Environment(
+        grid_path, 
+        no_gui=no_gui, 
+        target_fps=target_fps,
+        reward_fn=calculate_base_reward,
+        agent_start_pos=(4, 5)
+    )
     
     return env
 
@@ -57,10 +59,12 @@ def encode_state_normalized(raw_state: tuple, n_rows: int, n_cols: int, max_deli
     """
     Encode state with normalization for better training stability.
     """
-    i, j, remaining = raw_state
+    start_x, start_y, agent_x, agent_y, remaining = raw_state
     return torch.tensor([
-        i / (n_rows - 1),
-        j / (n_cols - 1), 
+        start_x / (n_rows - 1),
+        start_y / (n_cols - 1),
+        agent_x / (n_rows - 1),
+        agent_y / (n_cols - 1),
         remaining / max_deliveries
     ], device=device, dtype=torch.float32)
 
@@ -118,7 +122,7 @@ class PrioritizedReplayBuffer:
 class TrainingConfig:
     def __init__(self):
         # Network parameters
-        self.state_dim = 3
+        self.state_dim = 5
         self.n_actions = 4
         self.hidden_size = 128
         
@@ -203,13 +207,28 @@ def train_dqn(grid_name="medium_grid.npy", config=None, no_gui=True, target_fps=
                     state_tensor = encode_state_normalized(raw_state, n_rows, n_cols, max_deliveries)
                     q_values = policy_net(state_tensor.unsqueeze(0))
                     action = q_values.argmax(dim=1).item()
+            # Take action and get current position
+            old_pos = env.agent_pos
+            raw_next_state, original_reward, done, info = env.step(action)
+            new_pos = env.agent_pos
+              # Calculate enhanced reward
+            targets_remaining = raw_next_state[4]  # Last element is remaining targets
+            enhanced_reward = calculate_enhanced_reward(
+                grid=env.grid,
+                old_pos=old_pos,
+                new_pos=new_pos,
+                targets_remaining=targets_remaining,
+                start_pos=env.start_pos,
+                max_targets=max_deliveries
+            )
             
-            # Take action
-            raw_next_state, reward, done, info = env.step(action)
-            total_reward += reward
+            # Keep the original terminal bonus
+            if done and env.world_stats.get("final_bonus_given", 0):
+                enhanced_reward += 100  # Keep the big completion bonus
             
-            # Store transition
-            replay_buffer.push(raw_state, action, reward, raw_next_state, done)
+            total_reward += enhanced_reward
+              # Store transition
+            replay_buffer.push(raw_state, action, enhanced_reward, raw_next_state, done)
             
             raw_state = raw_next_state
             
@@ -536,6 +555,7 @@ if __name__ == "__main__":
                 agent=agent,
                 max_steps=args.max_steps,
                 sigma=args.sigma,
+                agent_start_pos=(4, 5),
                 random_seed=args.random_seed,
                 show_images=False
             )
