@@ -45,8 +45,7 @@ def setup_environment(grid_name, no_gui, target_fps):
         grid_path, 
         no_gui=no_gui, 
         target_fps=target_fps,
-        reward_fn=calculate_base_reward,
-        agent_start_pos=(4, 5)
+        reward_fn=calculate_base_reward
     )
     
     return env
@@ -150,7 +149,7 @@ class TrainingConfig:
 # TRAINING FUNCTION
 # ============================================================================
 
-def train_dqn(grid_name="medium_grid.npy", config=None, no_gui=True, target_fps=30):
+def train_dqn(grid_name="medium_grid_3.npy", config=None, no_gui=True, target_fps=30):
     """Train DQN agent on medium grid with enhanced rewards."""
     
     if config is None:
@@ -334,9 +333,16 @@ GRID_MAPPING = {
         "n_rows": 15,
         "n_cols": 15,
         "max_deliveries": 1,
+        "hidden_size": 128,    },
+    "grid_configs/medium_grid_2.npy": {
+        "model_file": "models/medium_grid_2_policy.pt",
+        "n_rows": 10,
+        "n_cols": 10,
+        "max_deliveries": 2,
         "hidden_size": 128,
-    },    "grid_configs/medium_grid.npy": {
-        "model_file": "models/medium_grid_policy.pt",
+    },
+    "grid_configs/medium_grid_3.npy": {
+        "model_file": "models/medium_grid_3_policy.pt",
         "n_rows": 10,
         "n_cols": 10,
         "max_deliveries": 3,
@@ -412,19 +418,15 @@ def plot_training_results(training_results):
     plt.show()
 
 # ============================================================================
-# MAIN EXECUTION
-# ============================================================================
-
-# ============================================================================
 # ARGUMENT PARSING
 # ============================================================================
 
 def parse_args():
     """Parse command line arguments for flexible debugging and experimentation."""
     parser = argparse.ArgumentParser(description="DQN Training and Evaluation with Enhanced Rewards")
-    # Environment parameters
-    parser.add_argument("grids", nargs="*", type=str, default=["medium_grid.npy"],
-                       help="Grid files to use for training/evaluation (default: medium_grid.npy)")
+    # Environment parameters    
+    parser.add_argument("grids", nargs="*", type=str, default=["medium_grid_3.npy"],
+                       help="Grid files to use for training/evaluation")
     parser.add_argument("--no_gui", action="store_true", default=False,
                        help="Disable GUI for faster training")
     parser.add_argument("--fps", type=int, default=10,
@@ -555,7 +557,7 @@ if __name__ == "__main__":
                 agent=agent,
                 max_steps=args.max_steps,
                 sigma=args.sigma,
-                agent_start_pos=(4, 5),
+                agent_start_pos=(7, 5),
                 random_seed=args.random_seed,
                 show_images=False
             )
