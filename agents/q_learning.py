@@ -41,7 +41,7 @@ class QLearningAgent(BaseAgent):
 
         self.actions = [0, 1, 2, 3]
         self.Q = np.zeros(
-            (self.n_rows, self.n_cols, self.max_deliveries + 1, len(self.actions))
+            (self.n_rows, self.n_cols, self.n_rows, self.n_cols, self.max_deliveries + 1, len(self.actions))
         )
 
         self._prev_Q = np.copy(self.Q)
@@ -50,7 +50,7 @@ class QLearningAgent(BaseAgent):
         self._unchanged_policy_count = 0
         self.has_converged = False
 
-    def take_action(self, state: tuple[int, int, int]) -> int:
+    def take_action(self, state: tuple[int, int, int, int, int]) -> int:
         """
         Selects an action using an ε-greedy policy based on current Q-values.
 
@@ -62,20 +62,20 @@ class QLearningAgent(BaseAgent):
         """
         if random.random() < self.epsilon:
             return random.choice(self.actions)
-        i, j, remaining = state
+        init_i, init_j, i, j, remaining = state
         # grab the Q-vector for this (row, col, remaining) tuple
-        q_values = self.Q[i, j, remaining]
+        q_values = self.Q[init_i, init_j, i, j, remaining]
         max_q = np.max(q_values)
         best_actions = [a for a, q in enumerate(q_values) if q == max_q]
         return random.choice(best_actions)
 
     def update(
         self,
-        prev_state: tuple[int, int],
+        prev_state: tuple[int, int, int, int, int],
         action: int,
         reward: float,
         done: bool = False,
-        next_state: tuple[int, int] = (0, 0),
+        next_state: tuple[int, int, int, int, int] = (0, 0),
     ):
         """
         Performs the Q-learning update for the current step based on the transition.
@@ -87,11 +87,11 @@ class QLearningAgent(BaseAgent):
             done (bool): Whether the episode has ended.
             next_state (tuple): The resulting state after the action.
         """
-        i, j, rem = prev_state
-        ni, nj, nrem = next_state
-        next_q_max = 0 if done else np.max(self.Q[ni, nj, nrem])
+        init_i, init_j, i, j, rem = prev_state
+        n_init_i, n_init_j, ni, nj, nrem = next_state
+        next_q_max = 0 if done else np.max(self.Q[n_init_i, n_init_j, ni, nj, nrem])
         td_target = reward + self.gamma * next_q_max
-        td_error = td_target - self.Q[i, j, rem, action]
+        td_error = td_target - self.Q[init_i, init_j, i, j, rem, action]
         self.Q[i, j, rem, action] += self.alpha * td_error
 
         self._check_convergence()

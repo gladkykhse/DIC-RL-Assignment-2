@@ -29,6 +29,7 @@ class DQNAgent(BaseAgent):
         n_rows: int,
         n_cols: int,
         max_deliveries: int,
+        input_dim: int,
     ):
         super().__init__()
         self.device = device
@@ -36,22 +37,24 @@ class DQNAgent(BaseAgent):
         self.n_cols = n_cols
         self.max_deliveries = max_deliveries
 
-        self.model = DQN(input_dim=3, n_actions=4, hidden_size=hidden_size).to(device)
-        self.model.load_state_dict(torch.load(model_file))
+        self.model = DQN(input_dim=input_dim, n_actions=4, hidden_size=hidden_size).to(device)
+        self.model.load_state_dict(torch.load(model_file, map_location=device))
         self.model.eval()
 
-    def encode_state_norm(self, raw: tuple[int, int, int]) -> torch.Tensor:
-        i, j, rem = raw
-        return torch.tensor(
-            [i / (self.n_rows - 1), j / (self.n_cols - 1), rem / self.max_deliveries],
-            device=self.device,
-            dtype=torch.float32,
-        )
+    def encode_state_norm(self, raw: tuple[int, int, int, int, int]) -> torch.Tensor:
+        i_init, j_init, i, j, rem = raw
+        return torch.tensor([
+            i_init / (self.n_rows - 1),
+            j_init / (self.n_cols - 1),
+            i / (self.n_rows - 1),
+            j / (self.n_cols - 1),
+            rem
+        ], device=self.device, dtype=torch.float32)
 
     def update(self, state: tuple[int, int], reward: float, action):
         pass
 
-    def take_action(self, state: tuple[int, int, int]) -> int:
+    def take_action(self, state: tuple[int, int, int, int, int]) -> int:
         state_tensor = self.encode_state_norm(state)
         action = self.model(state_tensor.unsqueeze(0)).argmax(dim=1).item()
         return action

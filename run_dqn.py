@@ -20,20 +20,21 @@ def parse_args():
     p = ArgumentParser(description="DIC Q-Learning Trainer.")
     p.add_argument("GRID", type=Path, nargs="+", help="Paths to the grid file to use.")
     p.add_argument("--no_gui", action="store_true")
-    p.add_argument("--sigma", type=float, default=0.1)
+    p.add_argument("--sigma", type=float, default=0.0)
     p.add_argument("--fps", type=int, default=30)
-    p.add_argument("--iter", type=int, default=500)
+    p.add_argument("--iter", type=int, default=200)
     p.add_argument("--random_seed", type=int, default=0)
     return p.parse_args()
 
 
 MAPPING = {
     "grid_configs/small_grid.npy": {
-        "model_file": "models/small_grid_policy.pt",
+        "model_file": "models/small_grid_1_policy.pt",
         "hidden_size": 64,
         "n_rows": 8,
         "n_cols": 8,
         "max_deliveries": 1,
+        "input_dim": 3,
     },
     "grid_configs/small_grid_2.npy": {
         "model_file": "models/small_grid_2_policy.pt",
@@ -41,20 +42,31 @@ MAPPING = {
         "n_rows": 8,
         "n_cols": 8,
         "max_deliveries": 2,
+        "input_dim": 3,
     },
-    "grid_configs/A1_grid.npy": {
-        "model_file": "models/A1_grid_policy.pt",
+    "grid_configs/custom_medium_grid_1.npy": {
+        "model_file": "models/medium_grid_1_policy.pt",
         "hidden_size": 64,
-        "n_rows": 15,
-        "n_cols": 15,
-        "max_deliveries": 1,
+        "n_rows": 10,
+        "n_cols": 10,
+        "max_deliveries": 3,
+        "input_dim": 5,
+    },
+    "grid_configs/custom_medium_grid_2.npy": {
+        "model_file": "models/medium_grid_2_policy.pt",
+        "hidden_size": 64,
+        "n_rows": 10,
+        "n_cols": 10,
+        "max_deliveries": 3,
+        "input_dim": 5,
     },
 }
 
 
 def main(grid_paths, no_gui, max_steps, fps, sigma, random_seed):
     for grid in grid_paths:
-        env = Environment(grid, no_gui, sigma=sigma, target_fps=fps, random_seed=random_seed)
+        env = Environment(grid, no_gui, sigma=sigma, target_fps=fps, random_seed=random_seed,
+                          agent_start_pos=(4, 6))
         env.reset()
 
         str_path = str(grid)
@@ -66,9 +78,10 @@ def main(grid_paths, no_gui, max_steps, fps, sigma, random_seed):
             n_rows=MAPPING[str_path]["n_rows"],
             n_cols=MAPPING[str_path]["n_cols"],
             max_deliveries=MAPPING[str_path]["max_deliveries"],
+            input_dim=MAPPING[str_path]["input_dim"],
         )
 
-        Environment.evaluate_agent(grid, agent, max_steps, sigma, random_seed=random_seed)
+        Environment.evaluate_agent(grid, agent, max_steps, sigma, random_seed=random_seed, agent_start_pos=(4, 6))
 
 
 if __name__ == "__main__":
