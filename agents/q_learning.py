@@ -50,19 +50,19 @@ class QLearningAgent(BaseAgent):
         self._unchanged_policy_count = 0
         self.has_converged = False
 
-    def take_action(self, state: tuple[int, int, int]) -> int:
+    def take_action(self, state: tuple[int, int, int, int, int]) -> int:
         """
         Selects an action using an ε-greedy policy based on current Q-values.
 
         Args:
-            state (tuple): The current state position as (row, column).
+            state (tuple): The current state as (start_x, start_y, agent_x, agent_y, remaining).
 
         Returns:
             int: The chosen action (0: right, 1: left, 2: up, 3: down).
         """
         if random.random() < self.epsilon:
             return random.choice(self.actions)
-        i, j, remaining = state
+        _, _, i, j, remaining = state
         # grab the Q-vector for this (row, col, remaining) tuple
         q_values = self.Q[i, j, remaining]
         max_q = np.max(q_values)
@@ -71,28 +71,30 @@ class QLearningAgent(BaseAgent):
 
     def update(
         self,
-        prev_state: tuple[int, int],
+        prev_state: tuple[int, int, int, int, int],
         action: int,
         reward: float,
         done: bool = False,
-        next_state: tuple[int, int] = (0, 0),
+        next_state: tuple[int, int, int, int, int] = (0, 0, 0, 0, 0),
     ):
         """
         Performs the Q-learning update for the current step based on the transition.
 
         Args:
-            prev_state (tuple): The previous state as (row, column).
+            prev_state (tuple): The previous state as (start_x, start_y, agent_x, agent_y, remaining).
             action (int): The action taken in the previous state.
             reward (float): The reward received after the action.
             done (bool): Whether the episode has ended.
             next_state (tuple): The resulting state after the action.
         """
-        i, j, rem = prev_state
-        ni, nj, nrem = next_state
-        next_q_max = 0 if done else np.max(self.Q[ni, nj, nrem])
+        # Extract agent positions and remaining from state tuples
+        _, _, prev_i, prev_j, prev_rem = prev_state
+        _, _, next_i, next_j, next_rem = next_state
+        
+        next_q_max = 0 if done else np.max(self.Q[next_i, next_j, next_rem])
         td_target = reward + self.gamma * next_q_max
-        td_error = td_target - self.Q[i, j, rem, action]
-        self.Q[i, j, rem, action] += self.alpha * td_error
+        td_error = td_target - self.Q[prev_i, prev_j, prev_rem, action]
+        self.Q[prev_i, prev_j, prev_rem, action] += self.alpha * td_error
 
         self._check_convergence()
         # Decay epsilon

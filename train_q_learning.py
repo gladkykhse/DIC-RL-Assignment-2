@@ -5,7 +5,7 @@ from tqdm import trange
 try:
     from world import Environment
     from agents.q_learning import QLearningAgent
-    from enhanced_reward_function import EnhancedRewardWrapper
+    from reward_functions import calculate_enhanced_reward
 except ModuleNotFoundError:
     from os import path, pardir
     import sys
@@ -15,7 +15,7 @@ except ModuleNotFoundError:
         sys.path.append(root_path)
     from world import Environment
     from agents.q_learning import QLearningAgent
-    from enhanced_reward_function import EnhancedRewardWrapper
+    from reward_functions import calculate_enhanced_reward
 
 
 def parse_args():
@@ -27,20 +27,13 @@ def parse_args():
     p.add_argument("--episodes", type=int, default=10_000)
     p.add_argument("--iter", type=int, default=500)
     p.add_argument("--random_seed", type=int, default=0)
-    p.add_argument("--enhanced_rewards", action="store_true")
     return p.parse_args()
 
 
-def main(grid_paths, no_gui, episodes, max_steps, fps, sigma, random_seed, enhanced_rewards=False):
+def main(grid_paths, no_gui, episodes, max_steps, fps, sigma, random_seed):
     for grid in grid_paths:
-        # Create base environment
-        base_env = Environment(grid, no_gui, sigma=sigma, target_fps=fps, random_seed=random_seed)
-        
-        # Optionally wrap with enhanced reward function
-        if enhanced_rewards:
-            env = EnhancedRewardWrapper(base_env)
-        else:
-            env = base_env
+        # Create environment
+        env = Environment(grid, no_gui, sigma=sigma, target_fps=fps, random_seed=random_seed)
 
         agent = QLearningAgent(grid_fp=grid, gamma=0.9, epsilon=0.1, alpha=0.05, convergence_tol=1e-6, patience=50)
 
@@ -51,7 +44,24 @@ def main(grid_paths, no_gui, episodes, max_steps, fps, sigma, random_seed, enhan
             state = env.reset()
             for _ in range(max_steps):
                 action = agent.take_action(state)
-                next_state, reward, terminated, info = env.step(action)
+                old_pos = env.agent_pos
+                next_state, original_reward, terminated, info = env.step(action)
+                new_pos = env.agent_pos
+
+                # Use enhanced reward function
+                targets_remaining = next_state[4]  # Last element is remaining targets
+                reward = calculate_enhanced_reward(
+                    grid=env.grid,
+                    old_pos=old_pos,
+                    new_pos=new_pos,
+                    targets_remaining=targets_remaining,
+                    start_pos=env.start_pos,
+                    max_targets=env.initial_target_count
+                )
+                
+                # Keep the original terminal bonus if episode is done
+                if terminated and env.world_stats.get("final_bonus_given", 0):
+                    reward += 100
 
                 actual_action = info.get("actual_action", action)
                 agent.update(
@@ -67,4 +77,4 @@ def main(grid_paths, no_gui, episodes, max_steps, fps, sigma, random_seed, enhan
 
 if __name__ == "__main__":
     args = parse_args()
-    main(args.GRID, args.no_gui, args.episodes, args.iter, args.fps, args.sigma, args.random_seed, args.enhanced_rewards)
+    main(args.GRID, args.no_gui, args.episodes, args.iter, args.fps, args.sigma, args.random_seed)

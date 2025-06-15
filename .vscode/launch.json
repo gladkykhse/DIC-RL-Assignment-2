@@ -8,10 +8,9 @@
       "program": "${workspaceFolder}/train_q_learning.py",
       "args": [
         "grid_configs/medium_grid.npy",
-        "--enhanced_rewards",
         "--no_gui",
         "--episodes",
-        "2000",
+        "15000",
         "--sigma",
         "0.0"
       ],
@@ -20,7 +19,7 @@
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "DQN Training - Medium Grid",
+      "name": "DQN Training - Medium Grid - Enhanced Rewards",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/train_and_run_dqn.py",
@@ -30,7 +29,7 @@
         "train",
         "--no_gui",
         "--episodes",
-        "500",
+        "250",
         "--sigma",
         "0.0"
       ],
@@ -50,29 +49,6 @@
         "--no_gui",
         "--eval_episodes",
         "10",
-        "--sigma",
-        "0.0"
-      ],
-      "console": "integratedTerminal",
-      "justMyCode": true,
-      "cwd": "${workspaceFolder}"
-    },
-    {
-      "name": "DQN Training & Evaluation - All Medium Grids",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/train_and_run_dqn.py",
-      "args": [
-        "medium_grid_new_1.npy",
-        "medium_grid_new_2.npy",
-        "medium_grid.npy",
-        "--mode",
-        "both",
-        "--no_gui",
-        "--episodes",
-        "300",
-        "--eval_episodes",
-        "5",
         "--sigma",
         "0.0"
       ],
