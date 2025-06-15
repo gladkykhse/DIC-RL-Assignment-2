@@ -128,7 +128,7 @@ class Environment:
             "total_targets_reached": 0,
             "initial_target_count": 0,
             "final_bonus_given": 0,
-        }
+        }    
 
     def _initialize_agent_pos(self):
         """Initializes agent position from the given location or
@@ -152,9 +152,9 @@ class Environment:
             zeros = np.where(self.grid == 0)
             idx = random.randint(0, len(zeros[0]) - 1)
             self.agent_pos = (zeros[0][idx], zeros[1][idx])
-            self.agent_start_pos = self.agent_pos
-
-    def reset(self, **kwargs) -> tuple[int, int]:
+            # self.agent_start_pos = self.agent_pos    
+        
+    def reset(self, **kwargs) -> tuple[int, int, int, int, int]:
         """Reset the environment to an initial state.
 
         You can fit it keyword arguments which will overwrite the
@@ -203,7 +203,7 @@ class Environment:
             if self.gui is not None:
                 self.gui.close()
 
-        return (self.agent_pos[0], self.agent_pos[1], self.initial_target_count)
+        return (self.start_pos[0], self.start_pos[1], self.agent_pos[0], self.agent_pos[1], self.initial_target_count)
 
     def _move_agent(self, new_pos: tuple[int, int]):
         """Moves the agent, if possible and updates the
@@ -307,9 +307,7 @@ class Environment:
             reward += 100
             self.world_stats["cumulative_reward"] += 100
             self.world_stats["final_bonus_given"] = 1
-            self.terminal_state = True
-
-        # GUI specific code
+            self.terminal_state = True           # GUI specific code
         if not self.no_gui:
             time_to_wait = self.target_spf - (time() - start_time)
             if time_to_wait > 0:
@@ -318,7 +316,7 @@ class Environment:
                             reward, is_single_step)
 
         remaining = self.initial_target_count - self.world_stats["total_targets_reached"]
-        return (self.agent_pos[0], self.agent_pos[1], remaining), reward, self.terminal_state, self.info
+        return (self.start_pos[0], self.start_pos[1] ,self.agent_pos[0], self.agent_pos[1], remaining), reward, self.terminal_state, self.info
 
     @staticmethod
     def _default_reward_function(grid, agent_pos) -> float:
@@ -398,7 +396,9 @@ class Environment:
             action = agent.take_action(state)
             state, _, terminated, _ = env.step(action)
 
-            agent_path.append(state)
+            # Extract agent position from state tuple (x, y are at indices 2, 3)
+            agent_position = (state[2], state[3])
+            agent_path.append(agent_position)
 
             if terminated:
                 break
