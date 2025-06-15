@@ -1,6 +1,3 @@
-# Medium Grid DQN Training Notebook
-# Optimized for faster experimentation with enhanced reward function
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,6 +10,7 @@ from pathlib import Path
 from tqdm import trange
 import sys
 import os
+import argparse
 
 # Add the project root to path if needed
 if os.path.abspath('.') not in sys.path:
@@ -20,6 +18,7 @@ if os.path.abspath('.') not in sys.path:
 
 from world.delivery_environment import Environment
 from enhanced_reward_function import EnhancedRewardWrapper
+from agents.dqn_agent import DQN, DQNAgent
 
 def get_device() -> torch.device:
     if torch.cuda.is_available():
@@ -32,11 +31,10 @@ device = get_device()
 print(f"Using device: {device}")
 
 # ============================================================================
-# ENVIRONMENT SETUP
+# ENVIRONMENT SETUP``
 # ============================================================================
 
-def setup_environment(grid_name="medium_grid.npy"):
-    """Setup environment with enhanced rewards."""
+def setup_environment(grid_name, no_gui, target_fps):
     grid_path = Path(f"grid_configs/{grid_name}")
     
     if not grid_path.exists():
@@ -44,34 +42,12 @@ def setup_environment(grid_name="medium_grid.npy"):
         return None
     
     # Create base environment
-    base_env = Environment(grid_path, no_gui=True, random_seed=42)
+    base_env = Environment(grid_path, no_gui=no_gui, target_fps=target_fps)
     
     # Wrap with enhanced reward function
     env = EnhancedRewardWrapper(base_env)
     
     return env
-
-# ============================================================================
-# NEURAL NETWORK ARCHITECTURE
-# ============================================================================
-
-class DQN(nn.Module):
-    def __init__(self, input_dim: int, n_actions: int, hidden_size: int = 128):
-        super().__init__()
-        self.network = nn.Sequential(
-            nn.Linear(input_dim, hidden_size),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(hidden_size, hidden_size // 2),
-            nn.ReLU(),
-            nn.Linear(hidden_size // 2, n_actions)
-        )
-        
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.network(x)
 
 # ============================================================================
 # STATE ENCODING
@@ -147,37 +123,37 @@ class TrainingConfig:
         self.hidden_size = 128
         
         # Training parameters
-        self.buffer_capacity = 10000
-        self.batch_size = 64  # Smaller batch size for faster training
+        self.buffer_capacity = 5000  # Reduced from 10000
+        self.batch_size = 32  # Reduced from 64 for faster training
         self.gamma = 0.99
-        self.lr = 1e-3
+        self.lr = 2e-3  # Slightly higher learning rate for faster convergence
         
         # Exploration parameters
         self.epsilon_start = 1.0
-        self.epsilon_end = 0.01
-        self.epsilon_decay = 0.995  # Faster decay for quicker convergence
+        self.epsilon_end = 0.05  # Higher end value for more exploration
+        self.epsilon_decay = 0.99  # Faster decay for quicker convergence
         
         # Training schedule
-        self.target_update_freq = 100
-        self.num_episodes = 1000  # Reduced for faster experimentation
-        self.max_steps_per_episode = 500  # Reduced for medium grid
+        self.target_update_freq = 50  # More frequent updates
+        self.num_episodes = 300  # Significantly reduced from 1000
+        self.max_steps_per_episode = 200  # Reduced from 500 for medium grid
         
         # Logging
-        self.log_interval = 25
-        self.save_interval = 200
+        self.log_interval = 10  # More frequent logging
+        self.save_interval = 100  # More frequent saves
 
 # ============================================================================
 # TRAINING FUNCTION
 # ============================================================================
 
-def train_dqn(grid_name="medium_grid_new_3.npy", config=None):
+def train_dqn(grid_name="medium_grid.npy", config=None, no_gui=True, target_fps=30):
     """Train DQN agent on medium grid with enhanced rewards."""
     
     if config is None:
         config = TrainingConfig()
     
     # Setup environment
-    env = setup_environment(grid_name)
+    env = setup_environment(grid_name, no_gui=no_gui, target_fps=target_fps)
     if env is None:
         return None
     
@@ -312,77 +288,60 @@ def train_dqn(grid_name="medium_grid_new_3.npy", config=None):
         'episode_rewards': episode_rewards,
         'episode_lengths': episode_lengths,
         'success_rate': success_rate,
-        'config': config
+        'config': config    }
+
+# ============================================================================
+# GRID CONFIGURATION MAPPING
+# ============================================================================
+
+# Configuration mapping for different grids
+GRID_MAPPING = {
+    "grid_configs/small_grid.npy": {
+        "model_file": "models/small_grid_policy.pt",
+        "n_rows": 8,
+        "n_cols": 8,
+        "max_deliveries": 1,
+        "hidden_size": 128,
+    },
+    "grid_configs/small_grid_2.npy": {
+        "model_file": "models/small_grid_2_policy.pt",
+        "n_rows": 8,
+        "n_cols": 8,
+        "max_deliveries": 2,
+        "hidden_size": 128,
+    },
+    "grid_configs/A1_grid.npy": {
+        "model_file": "models/A1_grid_policy.pt",
+        "n_rows": 15,
+        "n_cols": 15,
+        "max_deliveries": 1,
+        "hidden_size": 128,
+    },    "grid_configs/medium_grid.npy": {
+        "model_file": "models/medium_grid_policy.pt",
+        "n_rows": 10,
+        "n_cols": 10,
+        "max_deliveries": 3,
+        "hidden_size": 128,
     }
+}
 
-# ============================================================================
-# EVALUATION FUNCTION
-# ============================================================================
-
-def evaluate_agent(grid_name="medium_grid_new_3.npy", model_path=None, num_episodes=10):
-    """Evaluate trained agent."""
+def get_grid_config(grid_path):
+    """Get configuration for a specific grid file."""
+    # Convert Windows backslashes to forward slashes for consistency
+    grid_key = str(grid_path).replace('\\', '/')
     
-    env = setup_environment(grid_name)
-    if env is None:
-        return None
-    
-    n_rows, n_cols = env.grid.shape
-    max_deliveries = env.initial_target_count
-    
-    # Load model
-    if model_path is None:
-        model_path = Path("models") / grid_name.replace('.npy', '_policy.pt')
-    
-    policy_net = DQN(3, 4, 128).to(device)
-    policy_net.load_state_dict(torch.load(model_path, map_location=device))
-    policy_net.eval()
-    
-    print(f"Evaluating agent on {grid_name} for {num_episodes} episodes...")
-    
-    results = []
-    
-    for episode in range(num_episodes):
-        raw_state = env.reset()
-        total_reward = 0
-        steps = 0
-        
-        for step in range(500):
-            steps += 1
-            
-            with torch.no_grad():
-                state_tensor = encode_state_normalized(raw_state, n_rows, n_cols, max_deliveries)
-                q_values = policy_net(state_tensor.unsqueeze(0))
-                action = q_values.argmax(dim=1).item()
-            
-            raw_state, reward, done, info = env.step(action)
-            total_reward += reward
-            
-            if done:
-                break
-        
-        success = done and env.world_stats.get("final_bonus_given", 0) > 0
-        results.append({
-            'episode': episode + 1,
-            'reward': total_reward,
-            'steps': steps,
-            'success': success,
-            'targets_collected': env.world_stats.get("total_targets_reached", 0),
-            'failed_moves': env.world_stats.get("total_failed_moves", 0)
-        })
-    
-    # Print results
-    successes = sum(r['success'] for r in results)
-    avg_reward = np.mean([r['reward'] for r in results])
-    avg_steps = np.mean([r['steps'] for r in results])
-    avg_targets = np.mean([r['targets_collected'] for r in results])
-    
-    print(f"\nEvaluation Results:")
-    print(f"Success Rate: {successes}/{num_episodes} ({successes/num_episodes*100:.1f}%)")
-    print(f"Average Reward: {avg_reward:.2f}")
-    print(f"Average Steps: {avg_steps:.1f}")
-    print(f"Average Targets Collected: {avg_targets:.1f}/{max_deliveries}")
-    
-    return results
+    if grid_key in GRID_MAPPING:
+        return GRID_MAPPING[grid_key]
+    else:
+        # Default configuration if not found in mapping
+        print(f"Warning: No configuration found for {grid_key}. Using default config.")
+        return {
+            "model_file": f"models/{Path(grid_path).stem}_policy.pt",
+            "n_rows": 10,
+            "n_cols": 10,
+            "max_deliveries": 3,
+            "hidden_size": 128,
+        }
 
 # ============================================================================
 # VISUALIZATION FUNCTIONS
@@ -437,27 +396,151 @@ def plot_training_results(training_results):
 # MAIN EXECUTION
 # ============================================================================
 
-if __name__ == "__main__":
+# ============================================================================
+# ARGUMENT PARSING
+# ============================================================================
 
+def parse_args():
+    """Parse command line arguments for flexible debugging and experimentation."""
+    parser = argparse.ArgumentParser(description="DQN Training and Evaluation with Enhanced Rewards")
+    # Environment parameters
+    parser.add_argument("grids", nargs="*", type=str, default=["medium_grid.npy"],
+                       help="Grid files to use for training/evaluation (default: medium_grid.npy)")
+    parser.add_argument("--no_gui", action="store_true", default=False,
+                       help="Disable GUI for faster training")
+    parser.add_argument("--fps", type=int, default=10,
+                       help="Frames per second for GUI (default: 10)")
+    parser.add_argument("--random_seed", type=int, default=42,
+                       help="Random seed for reproducibility (default: 42)")
+    parser.add_argument("--sigma", type=float, default=0.0,
+                       help="Environment noise parameter (default: 0.0)")
     
-    # Train the agent
-    print("\n" + "="*60)
-    print("TRAINING DQN AGENT ON MEDIUM GRID")
-    print("="*60)
+    # Training parameters
+    parser.add_argument("--episodes", type=int, default=500,
+                       help="Number of training episodes (default: 500)")
+    parser.add_argument("--max_steps", type=int, default=200,
+                       help="Maximum steps per episode (default: 200)")
+    parser.add_argument("--batch_size", type=int, default=32,
+                       help="Batch size for training (default: 32)")
+    parser.add_argument("--lr", type=float, default=2e-3,
+                       help="Learning rate (default: 2e-3)")
+    parser.add_argument("--hidden_size", type=int, default=None,
+                       help="Hidden layer size (default: use grid config)")
     
-    config = TrainingConfig()
-    training_results = train_dqn("medium_grid_new_3.npy", config)
+    # Modes
+    parser.add_argument("--mode", type=str, choices=["train", "evaluate", "both"], default="both",
+                       help="Mode: train, evaluate, or both (default: both)")
+    parser.add_argument("--model_path", type=str, default=None,
+                       help="Path to pre-trained model for evaluation")
+    parser.add_argument("--eval_episodes", type=int, default=10,
+                       help="Number of episodes for evaluation (default: 10)")
+    parser.add_argument("--iter", type=int, default=100,
+                       help="Maximum steps for evaluation (default: 100)")
     
-    if training_results:
-        # Plot results
-        plot_training_results(training_results)
+    # Debug options
+    parser.add_argument("--debug", action="store_true", default=False,
+                       help="Enable debug mode with reduced episodes for testing")
+    parser.add_argument("--plot", action="store_true", default=True,
+                       help="Show training plots (default: True)")
+
+    return parser.parse_args()
+
+# ============================================================================
+# MAIN EXECUTION
+# ============================================================================
+
+if __name__ == "__main__":
+    args = parse_args()
+    
+    # Adjust parameters for debug mode
+    if args.debug:
+        print("DEBUG MODE: Reducing episodes and enabling GUI for testing")
+        args.episodes = 30  # Even faster for debug
+        args.max_steps = 100  # Reduced steps for debug
+        args.no_gui = False
+        args.fps = 8  # Slightly faster FPS
+    
+    # Process each grid
+    for grid_name in args.grids:
+        print(f"\n{'='*80}")
+        print(f"PROCESSING GRID: {grid_name}")
+        print(f"{'='*80}")
         
-        # Evaluate the trained agent
-        print("\n" + "="*60)
-        print("EVALUATING TRAINED AGENT")
-        print("="*60)
+        # Get grid configuration
+        grid_path = Path(f"grid_configs/{grid_name}")
+        if not grid_path.exists():
+            print(f"Error: Grid file {grid_path} not found. Skipping...")
+            continue
+            
+        grid_config = get_grid_config(grid_path)
         
-        evaluation_results = evaluate_agent("medium_grid_new_3.npy")
+        # Create custom config based on arguments and grid config
+        config = TrainingConfig()
+        config.num_episodes = args.episodes
+        config.max_steps_per_episode = args.max_steps
+        config.batch_size = args.batch_size
+        config.lr = args.lr
+        # Use provided hidden_size or grid config default
+        config.hidden_size = args.hidden_size if args.hidden_size is not None else grid_config["hidden_size"]
         
-        print("\nTraining and evaluation completed!")
-        print("You can now experiment with different grids and hyperparameters.")
+        print(f"Configuration:")
+        print(f"  Grid: {grid_name}")
+        print(f"  Model file: {grid_config['model_file']}")
+        print(f"  Grid size: {grid_config['n_rows']}x{grid_config['n_cols']}")
+        print(f"  Max deliveries: {grid_config['max_deliveries']}")
+        print(f"  Hidden size: {config.hidden_size}")
+        print(f"  GUI: {'Disabled' if args.no_gui else f'Enabled ({args.fps} FPS)'}")
+        print(f"  Episodes: {config.num_episodes}")
+        print(f"  Max steps per episode: {config.max_steps_per_episode}")
+        print(f"  Mode: {args.mode}")
+        
+        # Training
+        if args.mode in ["train", "both"]:
+            print("\n" + "="*60)
+            print("TRAINING DQN AGENT")
+            print("="*60)
+            
+            training_results = train_dqn(
+                grid_name=grid_name,
+                config=config,
+                no_gui=args.no_gui,
+                target_fps=args.fps
+            )
+            
+            if training_results and args.plot:
+                # Plot results
+                plot_training_results(training_results)
+          # Evaluation
+        if args.mode in ["evaluate", "both"]:
+            print("\n" + "="*60)
+            print("EVALUATING TRAINED AGENT")
+            print("="*60)
+            
+            # Use provided model path or grid config default
+            model_path = args.model_path
+            if model_path is None:
+                model_path = Path(grid_config["model_file"])
+            
+            # Create DQN agent for evaluation
+            agent = DQNAgent(
+                model_file=str(model_path),
+                hidden_size=grid_config["hidden_size"],
+                device=device,
+                n_rows=grid_config["n_rows"],
+                n_cols=grid_config["n_cols"],
+                max_deliveries=grid_config["max_deliveries"]
+            )
+
+            Environment.evaluate_agent(
+                grid_fp=Path(f"grid_configs/{grid_name}"),
+                agent=agent,
+                max_steps=args.max_steps,
+                sigma=args.sigma,
+                random_seed=args.random_seed,
+                show_images=False
+            )
+    
+    print(f"\n{'='*80}")
+    print(f"EXECUTION COMPLETED! Mode: {args.mode}")
+    print("You can now experiment with different grids and hyperparameters.")
+    print(f"{'='*80}")
