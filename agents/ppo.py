@@ -16,6 +16,8 @@ class PolicyNetwork(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
             nn.Linear(hidden_dim, output_dim)
         )
 
@@ -29,6 +31,8 @@ class ValueNetwork(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
             nn.Linear(hidden_dim, 1)
         )
 
@@ -38,15 +42,19 @@ class ValueNetwork(nn.Module):
 
 class PPOAgent(BaseAgent):
     def __init__(self,
+                 n_rows,
+                 n_cols,
+                 grid,
+                 max_targets,
                  state_dim=5,
                  action_dim=4,
-                 hidden_dim=128,
+                 hidden_dim=256,
                  gamma=0.99,
                  gae_lambda=0.95,
                  clip_epsilon=0.2,
-                 lr=3e-4,
-                 update_epochs=4,
-                 batch_size=64,
+                 lr=1e-4,
+                 update_epochs=15,
+                 batch_size=128,
                  entropy_coef=0.01,
                  value_coef=0.5,
                  max_grad_norm=0.5):
@@ -57,9 +65,13 @@ class PPOAgent(BaseAgent):
         self.clip_epsilon = clip_epsilon
         self.update_epochs = update_epochs
         self.batch_size = batch_size
-        self.entropy_coef = entropy_coef
         self.value_coef = value_coef
         self.max_grad_norm = max_grad_norm
+
+        self.initial_entropy_coef = entropy_coef
+        self.entropy_coef = entropy_coef
+        self.entropy_decay = 0.995
+        self.entropy_min = 0.001
 
         self.policy_net = PolicyNetwork(state_dim, hidden_dim, action_dim).to(_DEVICE)
         self.value_net = ValueNetwork(state_dim, hidden_dim).to(_DEVICE)
@@ -67,26 +79,53 @@ class PPOAgent(BaseAgent):
         self.policy_optimizer = optim.Adam(self.policy_net.parameters(), lr=lr)
         self.value_optimizer = optim.Adam(self.value_net.parameters(), lr=lr)
 
+        self.n_rows = n_rows
+        self.n_cols = n_cols
+        self.grid = grid
+        self.max_targets = max_targets
+
         self.buffer = []
 
+    def _encode(self, state):
+        sr, sc, ar, ac, remaining = state
+        return torch.tensor([
+            sr / max(self.n_rows - 1, 1),
+            sc / max(self.n_cols - 1, 1),
+            ar / max(self.n_rows - 1, 1),
+            ac / max(self.n_cols - 1, 1),
+            remaining / max(self.max_targets, 1)
+        ], dtype=torch.float32, device=_DEVICE)
+
     def take_action(self, state):
-        state = torch.tensor(state, dtype=torch.float32, device=_DEVICE).unsqueeze(0)
-        logits = self.policy_net(state)
-        dist = torch.distributions.Categorical(logits=logits)
-        action = dist.sample()
-        return action.item()
+        z = self._encode(state).unsqueeze(0)
+        logits = self.policy_net(z).squeeze(0)
+
+        # filter out invalid logits
+        _, _, ar, ac, _ = state
+        valid_actions = [False] * 4
+        directions = [(1, 0), (-1, 0), (0, -1), (0, 1)]
+        for i, d in enumerate(directions):
+            new_r = ar + d[1]
+            new_c = ac + d[0]
+            if 0 <= new_r < self.n_rows and 0 <= new_c < self.n_cols:
+                if self.grid[new_r, new_c] != 1 and self.grid[new_r, new_c] != 2:
+                    valid_actions[i] = True
+        mask = torch.tensor(valid_actions, dtype=torch.bool, device=_DEVICE)
+        logits[~mask] = float('-inf')
+        
+        return torch.distributions.Categorical(logits=logits).sample().item()
 
     def store_transition(self, state, action, reward, done, next_state):
-        self.buffer.append((state, action, reward, done, next_state))
+        self.buffer.append((self._encode(state).cpu(), action, reward, done, self._encode(next_state).cpu()))
 
     def _compute_returns_and_advantages(self):
         states, actions, rewards, dones, next_states = zip(*self.buffer)
 
-        states = torch.tensor(states, dtype=torch.float32, device=_DEVICE)
+        states = torch.stack(states).to(_DEVICE)
         actions = torch.tensor(actions, device=_DEVICE)
         rewards = torch.tensor(rewards, dtype=torch.float32, device=_DEVICE)
         dones = torch.tensor(dones, dtype=torch.float32, device=_DEVICE)
-        next_states = torch.tensor(next_states, dtype=torch.float32, device=_DEVICE)
+        next_states = torch.stack(next_states).to(_DEVICE)
 
         values = self.value_net(states).detach()
         next_values = self.value_net(next_states).detach()
@@ -107,6 +146,7 @@ class PPOAgent(BaseAgent):
         return states, actions, returns, advantages
 
     def update(self):
+        self.entropy_coef = max(self.entropy_coef * self.entropy_decay, self.entropy_min)
         states, actions, returns, advantages = self._compute_returns_and_advantages()
 
         # freeze the probabilities of the behaviour policy

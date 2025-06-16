@@ -1,11 +1,14 @@
 from argparse import ArgumentParser
+import argparse
 from pathlib import Path
 from tqdm import trange
 import numpy as np
+import torch
 
 try:
-    from world.delivery_environment_ppo import Environment
+    from world.delivery_environment import Environment
     from agents.ppo import PPOAgent
+    from enhanced_reward_function import enhanced_reward_function
 except ModuleNotFoundError:
     from os import path, pardir
     import sys
@@ -25,92 +28,79 @@ def parse_args():
                    help="Paths to the grid file to use.")
     p.add_argument("--no_gui", action="store_true")
     p.add_argument("--sigma", type=float, default=0.1)
+    p.add_argument("--agent_start_pos", type=parse_tuple, default=None)
     p.add_argument("--fps", type=int, default=30)
     p.add_argument("--episodes", type=int, default=500)
     p.add_argument("--iter", type=int, default=500)
     p.add_argument("--random_seed", type=int, default=0)
+    p.add_argument("--save_dir", type=Path, default=Path("models"))
     return p.parse_args()
 
+def parse_tuple(s):
+    try:
+        x, y = map(int, s.split(","))
+        return (x, y)
+    except Exception as e:
+        raise argparse.ArgumentTypeError(f"Invalid format for --agent_start_pos: '{s}'. Expected format is 'x,y'.")
 
 def make_reward_function():
-    visited = set()
     prev_pos = [None]
     start_pos = [None]
-    world_stats = [None]
-    step_counter = [0]
+    max_targets = [None]
 
-    def reward_fn(grid, agent_pos):
-        nonlocal visited, prev_pos, start_pos, world_stats, step_counter
-        reward = 0.0
-
-        curr_pos = agent_pos
-        all_targets_collected = (
-            world_stats[0]["total_targets_reached"] == world_stats[0]["initial_target_count"]
-        )
-        returning_home = all_targets_collected and curr_pos != start_pos[0]
-
-        match grid[agent_pos]:
-            case 0:
-                reward += -0.5
-            case 1 | 2:
-                reward -= 5
-            case 3:
-                reward += 10
-            case _:
-                raise ValueError(f"Invalid grid value at {agent_pos}: {grid[agent_pos]}")
-
-        if not all_targets_collected:
-            if curr_pos == prev_pos[0]:
-                reward -= 0.4
-            if curr_pos not in visited:
-                reward += 1.0
-            else:
-                reward -= 0.1
-            dist_from_start = abs(curr_pos[0] - start_pos[0][0]) + abs(curr_pos[1] - start_pos[0][1])
-            reward += 0.05 * dist_from_start
-            reward -= 0.002 * step_counter[0]
-        elif returning_home:
-            dist_to_start = abs(curr_pos[0] - start_pos[0][0]) + abs(curr_pos[1] - start_pos[0][1])
-            reward += 5.0 / (dist_to_start + 1)
-            reward -= 0.01 * step_counter[0]
-
-        if world_stats[0]["total_failed_moves"] == 0:
-            reward += 1.0
+    def reward(grid, new_pos):
+        cell_val = grid[new_pos]
+        if cell_val in (1, 2):
+            new_pos_effective = prev_pos[0]
         else:
-            reward -= 0.1 * world_stats[0]["total_failed_moves"]
+            new_pos_effective = new_pos
 
-        visited.add(curr_pos)
-        prev_pos[0] = curr_pos
-        step_counter[0] += 1
-        return reward
+        targets_remaining = int(np.sum(grid == 3))
+        r = enhanced_reward_function(
+            grid = grid,
+            old_pos = prev_pos[0],
+            new_pos = new_pos_effective,
+            targets_remaining = targets_remaining,
+            start_pos = start_pos[0],
+            max_targets = max_targets[0]
+        )
+
+        prev_pos[0] = new_pos_effective
+        return r
 
     def initialize(env):
-        visited.clear()
         prev_pos[0] = env.agent_pos
         start_pos[0] = env.start_pos
-        world_stats[0] = env.world_stats
-        step_counter[0] = 0
+        max_targets[0] = env.initial_target_count
 
-    reward_fn.initialize = initialize
-    return reward_fn
+    reward.initialize = initialize
+    return reward
 
 
-def main(grid_paths, no_gui, episodes, max_steps, fps, sigma, random_seed):
+def main(grid_paths, no_gui, episodes, max_steps, fps, sigma, agent_start_pos, random_seed, save_dir):
     for grid in grid_paths:
         reward_fn = make_reward_function()
         env = Environment(grid, no_gui, sigma=sigma,
                           target_fps=fps, random_seed=random_seed,
-                          reward_fn=reward_fn)
+                          reward_fn=reward_fn, agent_start_pos=agent_start_pos)
+        
+        state = env.reset()
+        n_rows, n_cols = env.grid.shape
+        max_targets = state[-1] 
 
         agent = PPOAgent(
+            n_rows=n_rows,
+            n_cols=n_cols,
+            grid=env.grid,
+            max_targets=max_targets,
             state_dim=5,
             action_dim=4,
-            hidden_dim=128,
+            hidden_dim=256,
             gamma=0.99,
             clip_epsilon=0.2,
             lr=3e-4,
-            update_epochs=4,
-            batch_size=64,
+            update_epochs=10,
+            batch_size=128,
             entropy_coef=0.01,
             value_coef=0.5
         )
@@ -123,8 +113,7 @@ def main(grid_paths, no_gui, episodes, max_steps, fps, sigma, random_seed):
                 action = agent.take_action(state)
                 next_state, reward, terminated, info = env.step(action)
 
-                actual_action = info.get("actual_action", action)
-                agent.store_transition(state, actual_action, reward, terminated, next_state)
+                agent.store_transition(state, action, reward, terminated, next_state)
 
                 state = next_state
 
@@ -132,11 +121,22 @@ def main(grid_paths, no_gui, episodes, max_steps, fps, sigma, random_seed):
                     break
 
             agent.update()
+        
+        ckpt = {
+            "policy": agent.policy_net.state_dict(),
+            "value":  agent.value_net.state_dict(),
+            "n_rows": n_rows,
+            "n_cols": n_cols,
+            "grid_fp": str(env.grid_fp),
+            "max_targets": max_targets
+        }
+        save_dir.mkdir(exist_ok=True, parents=True)
+        torch.save(ckpt, save_dir / f"PPO_{grid.stem}.pt")
 
-        Environment.evaluate_agent(
-            grid, agent, max_steps, sigma,
-            random_seed=random_seed
-        )
+        # Environment.evaluate_agent(
+        #     grid, agent, max_steps, sigma,
+        #     random_seed=random_seed
+        # )
 
 
 if __name__ == '__main__':
@@ -148,5 +148,7 @@ if __name__ == '__main__':
         args.iter,
         args.fps,
         args.sigma,
-        args.random_seed
+        args.agent_start_pos,
+        args.random_seed,
+        args.save_dir
     )
