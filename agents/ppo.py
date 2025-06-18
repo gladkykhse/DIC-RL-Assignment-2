@@ -73,6 +73,9 @@ class PPOAgent(BaseAgent):
         self.entropy_decay = 0.995
         self.entropy_min = 0.001
 
+        if n_rows == 10 and n_cols == 10 and max_targets == 2:
+            hidden_dim = 512 # higher dim for custom_medium_grid_2
+
         self.policy_net = PolicyNetwork(state_dim, hidden_dim, action_dim).to(_DEVICE)
         self.value_net = ValueNetwork(state_dim, hidden_dim).to(_DEVICE)
 
