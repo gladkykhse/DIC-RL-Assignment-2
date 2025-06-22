@@ -1,108 +1,81 @@
+# 2AMC15 - Data Intelligence Challenge | Assignment 2 
 
-Welcome to Data Intelligence Challenge-2AMC15!
-This is the repository containing the challenge environment code.
+This repository contains the code for Assignment 2 of the Data Intelligence Challenge course. Building on the foundations from Task 1, it introduces:
+- an updated delivery-task environment 
+- new agent implementations 
+- comprehensive training and evaluation scripts 
+- our custom DQN and PPO models 
+- a set of custom grids for both algorithms
 
-## Quickstart
+These additions enable seamless experimentation with Deep Q-Network (DQN) and Proximal Policy Optimization (PPO) approaches developed by our team.
 
-1. Create a virtual environment for this course with Python >= 3.10. Using conda, you can do: `conda create -n dic2025 python=3.11`. Use `conda activate dic2025` to activate it `conda deactivate` to deactivate it.
-2. Clone this repository into the local directory you prefer `git clone https://github.com/DataIntelligenceChallenge/2AMC15-2025.git`.
-3. Install the required packages `pip install -r requirements.txt`. Now, you are ready to use the simulation environment! :partying_face:	
-4. Run `$ python train.py grid_configs/example_grid.npy` to start training!
+## 🔧 Setup
 
-`train.py` is just an example training script. Inside this file, initialize the agent you want to train and evaluate. Feel free to modify it as necessary. Its usage is:
-
+1. **Clone the repo**  
 ```bash
-usage: train.py [-h] [--no_gui] [--sigma SIGMA] [--fps FPS] [--iter ITER]
-                [--random_seed RANDOM_SEED] 
-                GRID [GRID ...]
-
-DIC Reinforcement Learning Trainer.
-
-positional arguments:
-  GRID                  Paths to the grid file to use. There can be more than
-                        one.
-options:
-  -h, --help                 show this help message and exit
-  --no_gui                   Disables rendering to train faster (boolean)
-  --sigma SIGMA              Sigma value for the stochasticity of the environment. (float, default=0.1, should be in [0, 1])
-  --fps FPS                  Frames per second to render at. Only used if no_gui is not set. (int, default=30)
-  --iter ITER                Number of iterations to go through. Should be integer. (int, default=1000)
-  --random_seed RANDOM_SEED  Random seed value for the environment. (int, default=0)
+git clone https://github.com/gladkykhse/DIC-RL-Assignment-2.git
+cd DIC-RL-Assignment-2
 ```
-
-## Code guide
-
-The code is made up of 2 modules: 
-
-1. `agent`
-2. `world`
-
-### The `agent` module
-
-The `agent` module contains the `BaseAgent` class as well as some benchmark agents you may want to test against.
-
-The `BaseAgent` is an abstract class and all RL agents for DIC must inherit from/implement it.
-If you know/understand class inheritence, skip the following section:
-
-#### `BaseAgent` as an abstract class
-Here you can find an explanation about abstract classes [Geeks for Geeks](https://www.geeksforgeeks.org/abstract-classes-in-python/).
-
-Think of this like how all models in PyTorch start like 
-
-```python
-class NewModel(nn.Module):
-    def __init__(self):
-        super().__init__()
-    ...
-```
-
-In this case, `NewModel` inherits from `nn.Module`, which gives it the ability to do back propagation, store parameters, etc. without you having to manually code that every time.
-It also ensures that every class that inherits from `nn.Module` contains _at least_ the `forward()` method, which allows a forward pass to actually happen.
-
-In the case of your RL agent, inheriting from `BaseAgent` guarantees that your agent implements `update()` and `take_action()`.
-This ensures that no matter what RL agent you make and however you code it, the environment and training code can always interact with it in the same way.
-Check out the benchmark agents to see examples.
-
-### The `world` module
-
-The world module contains:
-1. `grid_creator.py`
-2. `environment.py`
-3. `grid.py`
-4. `gui.py`
-
-#### Grid creator
-Run this file to create new grids.
-
+2. Create & activate your environment with Python >= 3.10 (we use 3.11.11)
 ```bash
-$ python grid_creator.py
+# with conda
+conda create -n dic2025 python=3.11
+conda activate dic2025
+
+# or with venv
+python -m venv venv
+source venv/bin/activate
+```
+3. Install dependencies
+```bash
+pip install -r requirements.txt 
 ```
 
-This will start up a web server where you create new grids, of different sizes with various elements arrangements.
-To view the grid creator itself, go to `127.0.0.1:5000`.
-All levels will be saved to the `grid_configs/` directory.
+## 🚀 Usage
 
+### 1. DQN (Deep Q Network)
+Repository already contains models trained for grids:
+- `grid_configs/A1_grid.npy`
+- `grid_configs/medium_grid_2.npy`
+- `grid_configs/medium_grid_3.npy`
 
-#### The Environment
+Our team developed a Python script `train_and_run_dqn.py` that includes a full training-and-evaluation driver for
+a Deep Q-Network delivery agent: it sets up the grid environment with a fixed start position, trains a DQN using
+prioritized replay and target-network updates, saves models, supports CLI hyper-parameter tuning across multiple
+grid configs, and can plot or evaluate results on demand. 
 
-The `Environment` is very important because it contains everything we hold dear, including ourselves [^1].
-It is also the name of the class which our RL agent will act within. Most of the action happens in there.
+To reproduce the evaluation results exactly as in the report you can execute:
+```bash
+python train_and_run_dqn.py <supported grid> --mode evaluate
+```
+In the evaluation mode the `agents/dqn_agent.py` file is used which defines a feed-forward Deep Q-Network
+and a lightweight DQNAgent that normalizes grid-world states, loads a saved model, and selects actions
+greedily via the network’s arg-max output.
 
-The main interaction with `Environment` is through the methods:
+To train a new model for a different grid you can execute:
+```bash
+python train_and_run_dqn.py <any grid> --mode train ...
+```
+Adjust any hyper-parameters on the command line (e.g., `--lr`, `--hidden_size`, `--batch_size`, `--fps`) to suit your experiment
+the script will save the resulting policy under models/ using the grid name.
 
-- `Environment()` to initialize the environment
-- `reset()` to reset the environment
-- `step()` to actually take a time step with the environment
-- `Environment().evaluate_agent()` to evaluate the agent after training.
+### 2. PPO (Proximal Policy Optimization)
+Repository already contains models trained for grids:
+- `grid_configs/small_grid.npy`
+- `grid_configs/small_grid_2.npy`
+- `grid_configs/custom_medium_grid_1.npy`
+- `grid_configs/custom_medium_grid_2.npy`
 
-[^1]: In case you missed it, this sentence is a joke. Please do not write all your code in the `Environment` class.
+You can run script `run_ppo.py` to reproduce evaluation results exactly as in the report as follows:
+```bash
+python run_ppo.py <supported grid>
+```
 
-#### The Grid
-
-The `Grid` class is the the actual representation of the world on which the agent moves. It is a 2D Numpy array.
-
-#### The GUI
-
-The Graphical User Interface provides a way for you to actually see what the RL agent is doing.
-While performant and written using PyGame, it is still about 1300x slower than not running a GUI.
-Because of this, we recommend using it only while testing/debugging and not while training.
+In order to train a new model you can use script `train_ppo.py`:
+```bash
+python train_ppo.py <any grid> ...
+```
+where you can play with arguments and parameters of the script as well as grids to produce a new model. This script uses the agent from
+`agents/ppo.py` which implements a Proximal Policy Optimization (PPO) agent for grid-based
+delivery tasks, featuring separate policy and value networks, action-masking for invalid moves,
+and full training logic with clipped-ratio loss, GAE, entropy regularization, and adaptive hyper-parameters.
