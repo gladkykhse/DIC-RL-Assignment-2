@@ -42,7 +42,7 @@ def setup_environment(grid_name, no_gui, target_fps):
         return None
     
     # Set fixed starting position for 2-delivery experiments
-    fixed_start_pos = (2, 13)  # Change this to your desired fixed position
+    fixed_start_pos = (4, 5)  # Change this to your desired fixed position
     
     env = Environment(
         grid_path, 
@@ -296,13 +296,13 @@ def train_dqn(grid_name="medium_grid_2.npy", config=None, no_gui=True, target_fp
         if episode % config.save_interval == 0:
             model_path = Path("models")
             model_path.mkdir(exist_ok=True)
-            model_name = grid_name.replace('.npy', '_fixed_start_policy_213_1000.pt')
+            model_name = grid_name.replace('.npy', '_fixed_start_policy.pt')
             torch.save(policy_net.state_dict(), model_path / model_name)
     
     # Final save
     model_path = Path("models")
     model_path.mkdir(exist_ok=True)
-    model_name = grid_name.replace('.npy', '_fixed_start_policy_213_1000.pt')
+    model_name = grid_name.replace('.npy', '_fixed_start_policy.pt')
     torch.save(policy_net.state_dict(), model_path / model_name)
     
     print(f"Training completed! Model saved as {model_name}")
@@ -320,47 +320,26 @@ def train_dqn(grid_name="medium_grid_2.npy", config=None, no_gui=True, target_fp
 
 # Configuration mapping for different grids
 GRID_MAPPING = {
-    "grid_configs/small_grid.npy": {
-        "model_file": "models/small_grid_policy.pt",
-        "n_rows": 8,
-        "n_cols": 8,
-        "max_deliveries": 1,
-        "hidden_size": 128,
-    },
-    # "grid_configs/small_grid_2.npy": {
-    #     "model_file": "models/small_grid_2_policy.pt",
-    #     "n_rows": 8,
-    #     "n_cols": 8,
-    #     "max_deliveries": 2,
-    #     "hidden_size": 128,
-    # },
     "grid_configs/A1_grid.npy": {
-        "model_file": "models/A1_grid_fixed_start_policy_213_1000.pt",
+        "model_file": "models/DQN_A1_grid_fixed_start_policy.pt",
         "n_rows": 15,
         "n_cols": 15,
         "max_deliveries": 1,
         "hidden_size": 128,    },
     "grid_configs/medium_grid_2.npy": {
-        "model_file": "models/medium_grid_2_fixed_start_policy.pt",  # Updated for fixed start
+        "model_file": "models/DQN_medium_grid_2_random_policy.pt",  
         "n_rows": 10,
         "n_cols": 10,
         "max_deliveries": 2,
         "hidden_size": 128,
     },
     "grid_configs/medium_grid_3.npy": {
-        "model_file": "models/medium_grid_3_policy.pt",
+        "model_file": "models/DQN_medium_grid_3_fixed_policy.pt",
         "n_rows": 10,
         "n_cols": 10,
         "max_deliveries": 3,
         "hidden_size": 128,
-    },
-    "grid_configs/small_grid_2.npy": {
-        "model_file": "models/small_grid_2_fixed_start_policy.pt",  # ← Use the actual saved model file
-        "n_rows": 8,  # ← These need to match the saved model architecture
-        "n_cols": 8,
-        "max_deliveries": 2,
-        "hidden_size": 64,  # ← Change from 128 to 64 to match saved model
-    },
+    }
 }
 
 def get_grid_config(grid_path):
@@ -527,7 +506,7 @@ if __name__ == "__main__":
         print(f"  Episodes: {config.num_episodes}")
         print(f"  Max steps per episode: {config.max_steps_per_episode}")
         print(f"  Mode: {args.mode}")
-        print(f"  Fixed starting position: (2, 13)")
+        print(f"  Fixed starting position: (4, 5)")
         
         # Training
         if args.mode in ["train", "both"]:
@@ -567,7 +546,7 @@ if __name__ == "__main__":
             )
 
             # Use fixed starting position (same as training)
-            fixed_start_pos = (2, 13)
+            fixed_start_pos = (4, 5)
             print(f"Using fixed starting position for evaluation: {fixed_start_pos}")
 
             Environment.evaluate_agent(
