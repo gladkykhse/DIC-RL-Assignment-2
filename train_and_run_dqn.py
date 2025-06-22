@@ -321,7 +321,7 @@ def train_dqn(grid_name="medium_grid_2.npy", config=None, no_gui=True, target_fp
 # Configuration mapping for different grids
 GRID_MAPPING = {
     "grid_configs/A1_grid.npy": {
-        "model_file": "models/DQN_A1_grid_fixed_start_policy.pt",
+        "model_file": "models/A1_grid_fixed_start_policy_final.pt",
         "n_rows": 15,
         "n_cols": 15,
         "max_deliveries": 1,
@@ -552,7 +552,7 @@ if __name__ == "__main__":
             Environment.evaluate_agent(
                 grid_fp=Path(f"grid_configs/{grid_name}"),
                 agent=agent,
-                max_steps=args.iter,
+                max_steps=args.max_steps,
                 sigma=args.sigma,
                 agent_start_pos=fixed_start_pos,
                 random_seed=args.random_seed,
