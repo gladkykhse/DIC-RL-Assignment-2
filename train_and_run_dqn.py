@@ -41,12 +41,18 @@ def setup_environment(grid_name, no_gui, target_fps):
         print(f"Grid {grid_path} not found. Please run the grid generator first.")
         return None
     
+    # Set fixed starting position for 2-delivery experiments
+    fixed_start_pos = (2, 13)  # Change this to your desired fixed position
+    
     env = Environment(
         grid_path, 
         no_gui=no_gui, 
         target_fps=target_fps,
-        reward_fn=calculate_base_reward
+        reward_fn=calculate_base_reward,
+        agent_start_pos=fixed_start_pos
     )
+    
+    print(f"Environment created with fixed starting position: {fixed_start_pos}")
     
     return env
 
@@ -149,8 +155,8 @@ class TrainingConfig:
 # TRAINING FUNCTION
 # ============================================================================
 
-def train_dqn(grid_name="medium_grid_3.npy", config=None, no_gui=True, target_fps=30):
-    """Train DQN agent on medium grid with enhanced rewards."""
+def train_dqn(grid_name="medium_grid_2.npy", config=None, no_gui=True, target_fps=30):
+    """Train DQN agent on medium grid with enhanced rewards and fixed starting position."""
     
     if config is None:
         config = TrainingConfig()
@@ -290,13 +296,13 @@ def train_dqn(grid_name="medium_grid_3.npy", config=None, no_gui=True, target_fp
         if episode % config.save_interval == 0:
             model_path = Path("models")
             model_path.mkdir(exist_ok=True)
-            model_name = grid_name.replace('.npy', '_policy.pt')
+            model_name = grid_name.replace('.npy', '_fixed_start_policy_213_1000.pt')
             torch.save(policy_net.state_dict(), model_path / model_name)
     
     # Final save
     model_path = Path("models")
     model_path.mkdir(exist_ok=True)
-    model_name = grid_name.replace('.npy', '_policy.pt')
+    model_name = grid_name.replace('.npy', '_fixed_start_policy_213_1000.pt')
     torch.save(policy_net.state_dict(), model_path / model_name)
     
     print(f"Training completed! Model saved as {model_name}")
@@ -321,21 +327,21 @@ GRID_MAPPING = {
         "max_deliveries": 1,
         "hidden_size": 128,
     },
-    "grid_configs/small_grid_2.npy": {
-        "model_file": "models/small_grid_2_policy.pt",
-        "n_rows": 8,
-        "n_cols": 8,
-        "max_deliveries": 2,
-        "hidden_size": 128,
-    },
+    # "grid_configs/small_grid_2.npy": {
+    #     "model_file": "models/small_grid_2_policy.pt",
+    #     "n_rows": 8,
+    #     "n_cols": 8,
+    #     "max_deliveries": 2,
+    #     "hidden_size": 128,
+    # },
     "grid_configs/A1_grid.npy": {
-        "model_file": "models/A1_grid_policy.pt",
+        "model_file": "models/A1_grid_fixed_start_policy_213_1000.pt",
         "n_rows": 15,
         "n_cols": 15,
         "max_deliveries": 1,
         "hidden_size": 128,    },
     "grid_configs/medium_grid_2.npy": {
-        "model_file": "models/medium_grid_2_policy.pt",
+        "model_file": "models/medium_grid_2_fixed_start_policy.pt",  # Updated for fixed start
         "n_rows": 10,
         "n_cols": 10,
         "max_deliveries": 2,
@@ -347,7 +353,14 @@ GRID_MAPPING = {
         "n_cols": 10,
         "max_deliveries": 3,
         "hidden_size": 128,
-    }
+    },
+    "grid_configs/small_grid_2.npy": {
+        "model_file": "models/small_grid_2_fixed_start_policy.pt",  # ← Use the actual saved model file
+        "n_rows": 8,  # ← These need to match the saved model architecture
+        "n_cols": 8,
+        "max_deliveries": 2,
+        "hidden_size": 64,  # ← Change from 128 to 64 to match saved model
+    },
 }
 
 def get_grid_config(grid_path):
@@ -380,7 +393,7 @@ def plot_training_results(training_results):
     success_rate = training_results['success_rate']
     
     fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-    fig.suptitle('Training Results', fontsize=16)
+    fig.suptitle('Training Results - 2 Deliveries Fixed Start', fontsize=16)
     
     # Episode rewards
     axes[0, 0].plot(episode_rewards, alpha=0.6)
@@ -423,9 +436,9 @@ def plot_training_results(training_results):
 
 def parse_args():
     """Parse command line arguments for flexible debugging and experimentation."""
-    parser = argparse.ArgumentParser(description="DQN Training and Evaluation with Enhanced Rewards")
+    parser = argparse.ArgumentParser(description="DQN Training and Evaluation with Enhanced Rewards and Fixed Start")
     # Environment parameters    
-    parser.add_argument("grids", nargs="*", type=str, default=["medium_grid_3.npy"],
+    parser.add_argument("grids", nargs="*", type=str, default=["medium_grid_2.npy"],
                        help="Grid files to use for training/evaluation")
     parser.add_argument("--no_gui", action="store_true", default=False,
                        help="Disable GUI for faster training")
@@ -437,8 +450,8 @@ def parse_args():
                        help="Environment noise parameter (default: 0.0)")
     
     # Training parameters
-    parser.add_argument("--episodes", type=int, default=500,
-                       help="Number of training episodes (default: 500)")
+    parser.add_argument("--episodes", type=int, default=300,
+                       help="Number of training episodes (default: 300)")
     parser.add_argument("--max_steps", type=int, default=200,
                        help="Maximum steps per episode (default: 200)")
     parser.add_argument("--batch_size", type=int, default=32,
@@ -484,7 +497,7 @@ if __name__ == "__main__":
     # Process each grid
     for grid_name in args.grids:
         print(f"\n{'='*80}")
-        print(f"PROCESSING GRID: {grid_name}")
+        print(f"PROCESSING GRID: {grid_name} (WITH FIXED STARTING POSITION)")
         print(f"{'='*80}")
         
         # Get grid configuration
@@ -514,11 +527,12 @@ if __name__ == "__main__":
         print(f"  Episodes: {config.num_episodes}")
         print(f"  Max steps per episode: {config.max_steps_per_episode}")
         print(f"  Mode: {args.mode}")
+        print(f"  Fixed starting position: (2, 13)")
         
         # Training
         if args.mode in ["train", "both"]:
             print("\n" + "="*60)
-            print("TRAINING DQN AGENT")
+            print("TRAINING DQN AGENT WITH FIXED STARTING POSITION")
             print("="*60)
             
             training_results = train_dqn(
@@ -552,17 +566,22 @@ if __name__ == "__main__":
                 max_deliveries=grid_config["max_deliveries"]
             )
 
+            # Use fixed starting position (same as training)
+            fixed_start_pos = (2, 13)
+            print(f"Using fixed starting position for evaluation: {fixed_start_pos}")
+
             Environment.evaluate_agent(
                 grid_fp=Path(f"grid_configs/{grid_name}"),
                 agent=agent,
-                max_steps=args.max_steps,
+                max_steps=args.iter,
                 sigma=args.sigma,
-                agent_start_pos=(7, 5),
+                agent_start_pos=fixed_start_pos,
                 random_seed=args.random_seed,
                 show_images=False
             )
     
     print(f"\n{'='*80}")
     print(f"EXECUTION COMPLETED! Mode: {args.mode}")
+    print("Fixed starting position experiments completed.")
     print("You can now experiment with different grids and hyperparameters.")
     print(f"{'='*80}")

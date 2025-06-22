@@ -93,6 +93,117 @@
       "console": "integratedTerminal",
       "justMyCode": true,
       "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "DQN Training - 2 Deliveries Fixed Start",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/train_and_run_dqn.py",
+      "args": [
+        "small_grid_2.npy",
+        "--mode",
+        "train",
+        "--no_gui",
+        "--episodes",
+        "300",
+        "--max_steps",
+        "200",
+        "--batch_size",
+        "32",
+        "--lr",
+        "2e-3",
+        "--sigma",
+        "0.0"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "DQN Evaluation - 2 Deliveries Fixed Start",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/train_and_run_dqn.py",
+      "args": [
+        "small_grid_2.npy",
+        "--mode",
+        "evaluate",
+        "--no_gui",
+        "--eval_episodes",
+        "20",
+        "--sigma",
+        "0.0"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "DQN Training - 2 Deliveries Fixed Start - Debug",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/train_and_run_dqn.py",
+      "args": [
+        "small_grid_2.npy",
+        "--mode",
+        "train",
+        "--debug",
+        "--episodes",
+        "50",
+        "--max_steps",
+        "150",
+        "--sigma",
+        "0.0"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "DQN Training - A1 Grid - 1 Delivery Fixed Start",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/train_and_run_dqn.py",
+      "args": [
+        "A1_grid.npy",
+        "--mode",
+        "train",
+        "--no_gui",
+        "--episodes",
+        "1000",
+        "--max_steps",
+        "1000",
+        "--batch_size",
+        "32",
+        "--lr",
+        "2e-3",
+        "--sigma",
+        "0.0"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "DQN Evaluation - A1 Grid - 1 Delivery Fixed Start",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/train_and_run_dqn.py",
+      "args": [
+        "A1_grid.npy",
+        "--mode",
+        "evaluate",
+        "--no_gui",
+        "--eval_episodes",
+        "1000",
+        "--iter",
+        "1000",  
+        "--sigma",
+        "0.0"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "cwd": "${workspaceFolder}"
     }
   ]
 }
